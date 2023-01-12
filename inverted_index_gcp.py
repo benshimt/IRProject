@@ -30,7 +30,8 @@ class MultiFileWriter:
         self.client = storage.Client()
         self.bucket = self.client.bucket(bucket_name)
         
-    
+
+
     def write(self, b):
         locs = []
         while len(b) > 0:

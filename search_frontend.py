@@ -40,6 +40,7 @@ class MyFlaskApp(Flask):
         self.inverted_body_stem = None
         self.nfi = None
 
+
     def run(self, host=None, port=None, debug=None, **options):
         # self.wid2pv = dict(pickle.load(open('body_index/pageviews.pkl', 'rb')))
         self.inverted_body = InvertedIndex.read_index('body_index', 'body')
