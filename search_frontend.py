@@ -231,17 +231,17 @@ def search():
     # return jsonify(res)
 
     # basic search
-    # res = []
-    # query = request.args.get('query', '')
-    # if len(query) == 0:
-    #     return jsonify(res)
-    # # BEGIN SOLUTION
-    # body = sim_body(app.inverted_body,tokenize(query),"body_index")
-    # title = all_titles_score(tokenize(query), app.inverted_title)
-    # merged_list = merge_results(title, body)
-    # for tup in merged_list:
-    #     res.append((tup[0], app.titles(tup[0])))
-    # return jsonify(res)
+    res = []
+    query = request.args.get('query', '')
+    if len(query) == 0:
+        return jsonify(res)
+    # BEGIN SOLUTION
+    body = sim_body(app.inverted_body,tokenize(query),"body_index")
+    title = all_titles_score(tokenize(query), app.inverted_title)
+    merged_list = merge_results(title, body)
+    for tup in merged_list:
+        res.append((tup[0], app.titles(tup[0])))
+    return jsonify(res)
 
 
 #     search with stemming
@@ -274,15 +274,15 @@ def search():
 
 
 # BM25 body stem
-    res = []
-    query = request.args.get('query', '')
-    if len(query) == 0:
-        return jsonify(res)
-    q = tokenize(query)
-    temp = app.BM25_stem.search(q)
-    for tup in temp:
-        res.append((tup[0], app.titles[tup[0]]))
-    return jsonify(res)
+#     res = []
+#     query = request.args.get('query', '')
+#     if len(query) == 0:
+#         return jsonify(res)
+#     q = tokenize(query)
+#     temp = app.BM25_stem.search(q)
+#     for tup in temp:
+#         res.append((tup[0], app.titles[tup[0]]))
+#     return jsonify(res)
 
 
 @app.route("/search_body")
