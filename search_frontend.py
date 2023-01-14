@@ -45,8 +45,6 @@ class MyFlaskApp(Flask):
         self.nfi = dict(pickle.load(objectRep_nfi))
         objectRep_nfi.close()
 
-
-
         objectRep_title = open("body_index/id_title.pickle", "rb")
         self.titles = dict(pickle.load(objectRep_title))
         objectRep_title.close()
@@ -55,8 +53,6 @@ class MyFlaskApp(Flask):
         self.page_rank = pd.read_csv('anchor_index/pr_file.csv.gz', names=colnames, compression='gzip')
         self.inverted_title = InvertedIndex.read_index('title_index', 'title')
         self.inverted_anchor = InvertedIndex.read_index('anchor_index', 'anchor')
-
-
 
         # self.inverted_body_stem = InvertedIndex.read_index('body_stem_index', 'body_stem')
         #
@@ -71,7 +67,6 @@ class MyFlaskApp(Flask):
 
 app = MyFlaskApp(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
-
 
 english_stopwords = frozenset(stopwords.words('english'))
 corpus_stopwords = ["category", "references", "also", "external", "links",
@@ -180,6 +175,8 @@ def sim_body(index, query, dir):
         q += (dict_query[q_word] / len_query) ** 2
         pls = index.read_posting_list(q_word, dir)
         for doc_id, freq in pls:
+            if (app.DL[doc_id] == 0 or index.df[q_word] == 0):
+                print(q_word, doc_id, app.DL[doc_id], index.df[q_word])
             tf_idf_doc = (freq / app.DL[doc_id]) * math.log(len(app.DL) / index.df[q_word], 10)
             tf_idf_query = (dict_query[q_word] / len(query))
             if doc_id in sim.keys():
@@ -188,6 +185,37 @@ def sim_body(index, query, dir):
                 sim[doc_id] = tf_idf_doc * tf_idf_query
     for doc_id in sim.keys():
         sim[doc_id] = sim[doc_id] * (1 / (q ** 0.5)) * (1 / app.nfi[doc_id])
+    temp = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:20]
+    return temp
+
+
+def sim_title(index, query, dir):
+    dict_query = Counter(query)
+    len_query = len(query)
+    q = 0
+    nfi = {}
+    sim = {}
+    for q_word in dict_query.keys():
+        q += (dict_query[q_word] / len_query) ** 2
+        pls = index.read_posting_list(q_word, dir)
+        for doc_id, freq in pls:
+            if app.DL[doc_id] == 0 or index.df[q_word] == 0:
+                continue
+            else:
+                if doc_id in nfi.keys():
+                    nfi[doc_id] += (Counter(tokenize(app.titles[doc_id]))[q_word] / len(
+                        tokenize(app.titles[doc_id]))) ** 2
+                else:
+                    nfi[doc_id] = (Counter(tokenize(app.titles[doc_id]))[q_word] / len(
+                        tokenize(app.titles[doc_id]))) ** 2
+                tf_idf_title = (freq / len(tokenize(app.titles[doc_id]))) * math.log(len(app.DL) / index.df[q_word], 10)
+                tf_idf_query = (dict_query[q_word] / len(query))
+                if doc_id in sim.keys():
+                    sim[doc_id] += tf_idf_title * tf_idf_query
+                else:
+                    sim[doc_id] = tf_idf_title * tf_idf_query
+    for doc_id in sim.keys():
+        sim[doc_id] = sim[doc_id] * (1 / (q ** 0.5)) * (1 / nfi[doc_id] ** 0.5)
     temp = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:20]
     return temp
 
@@ -240,12 +268,13 @@ def search():
     if len(query) == 0:
         return jsonify(res)
     # BEGIN SOLUTION
-    body = sim_body(app.inverted_body,tokenize(query),"body_index")
-    title = sim_body(app.inverted_title,tokenize(query),"title_index")
+    body = sim_body(app.inverted_body, tokenize(query), "body_index")
+    title = sim_title(app.inverted_title, tokenize(query), "title_index")
     merged_list = merge_results(title, body)
     for tup in merged_list:
         res.append((tup[0], app.titles[tup[0]]))
     return jsonify(res)
+
 
 #     search with stemming
 #     res = []
@@ -275,9 +304,6 @@ def search():
 #     for tup in merged_list:
 #         res.append((tup[0], app.titles[tup[0]]))
 #     return jsonify(res)
-
-
-
 
 
 @app.route("/search_body")
