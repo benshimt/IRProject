@@ -220,15 +220,15 @@ def search():
         element is a tuple (wiki_id, title).
     '''
     # BM25 body
-    res = []
-    query = request.args.get('query', '')
-    if len(query) == 0:
-        return jsonify(res)
-    q = tokenize(query)
-    temp = app.BM25.search(q)
-    for tup in temp:
-        res.append((tup[0], app.titles[tup[0]]))
-    return jsonify(res)
+    # res = []
+    # query = request.args.get('query', '')
+    # if len(query) == 0:
+    #     return jsonify(res)
+    # q = tokenize(query)
+    # temp = app.BM25.search(q)
+    # for tup in temp:
+    #     res.append((tup[0], app.titles[tup[0]]))
+    # return jsonify(res)
 
     # basic search
     # res = []
@@ -273,16 +273,16 @@ def search():
 #     return jsonify(res)
 
 
-# BM25 body
-#     res = []
-#     query = request.args.get('query', '')
-#     if len(query) == 0:
-#         return jsonify(res)
-#     q = tokenize(query)
-#     temp = app.BM25_stem.search(q)
-#     for tup in temp:
-#         res.append((tup[0], app.titles[tup[0]]))
-#     return jsonify(res)
+# BM25 body stem
+    res = []
+    query = request.args.get('query', '')
+    if len(query) == 0:
+        return jsonify(res)
+    q = tokenize(query)
+    temp = app.BM25_stem.search(q)
+    for tup in temp:
+        res.append((tup[0], app.titles[tup[0]]))
+    return jsonify(res)
 
 
 @app.route("/search_body")
@@ -501,7 +501,7 @@ def get_pageview():
     # BEGIN SOLUTION
     for id in wiki_ids:
         if id in app.DL.keys():
-            res.append(app.wid2pv[str(id)])
+            res.append(app.wid2pv[id])
         else:
             res.append(0)
     # END SOLUTION
