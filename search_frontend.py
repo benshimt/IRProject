@@ -220,28 +220,28 @@ def search():
         element is a tuple (wiki_id, title).
     '''
     # BM25 body
-    res = []
-    query = request.args.get('query', '')
-    if len(query) == 0:
-        return jsonify(res)
-    q = tokenize(query)
-    temp = app.BM25.search(q)
-    for tup in temp:
-        res.append((tup[0], app.titles[tup[0]]))
-    return jsonify(res)
-
-    # basic search
     # res = []
     # query = request.args.get('query', '')
     # if len(query) == 0:
     #     return jsonify(res)
-    # # BEGIN SOLUTION
-    # body = sim_body(app.inverted_body,tokenize(query),"body_index")
-    # title = all_titles_score(tokenize(query), app.inverted_title)
-    # merged_list = merge_results(title, body)
-    # for tup in merged_list:
+    # q = tokenize(query)
+    # temp = app.BM25.search(q)
+    # for tup in temp:
     #     res.append((tup[0], app.titles[tup[0]]))
     # return jsonify(res)
+
+    # basic search
+    res = []
+    query = request.args.get('query', '')
+    if len(query) == 0:
+        return jsonify(res)
+    # BEGIN SOLUTION
+    body = sim_body(app.inverted_body,tokenize(query),"body_index")
+    title = all_titles_score(tokenize(query), app.inverted_title)
+    merged_list = merge_results(title, body)
+    for tup in merged_list:
+        res.append((tup[0], app.titles[tup[0]]))
+    return jsonify(res)
 
 
 #     search with stemming
