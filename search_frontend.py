@@ -58,7 +58,7 @@ class MyFlaskApp(Flask):
         #
         #
         #
-        # self.BM25 = BM25_from_index(self.inverted_body, self.DL, "body_index")
+        self.BM25 = BM25_from_index(self.inverted_body, self.DL, "body_index")
         # self.BM25_stem = BM25_from_index(self.inverted_body_stem, self.DL, "body_stem_index")
 
     def run(self, host=None, port=None, debug=None, **options):
@@ -263,18 +263,30 @@ def search():
     # return jsonify(res)
 
     # cosine sim title and body
+    # res = []
+    # query = request.args.get('query', '')
+    # if len(query) == 0:
+    #     return jsonify(res)
+    # # BEGIN SOLUTION
+    # body = sim_body(app.inverted_body, tokenize(query), "body_index")
+    # title = sim_title(app.inverted_title, tokenize(query), "title_index")
+    # merged_list = merge_results(title, body,title_weight=0.1,text_weight=0.9)
+    # for tup in merged_list:
+    #     res.append((tup[0], app.titles[tup[0]]))
+    # return jsonify(res)
+
+
+    # BM25 body and title
     res = []
     query = request.args.get('query', '')
     if len(query) == 0:
         return jsonify(res)
-    # BEGIN SOLUTION
-    body = sim_body(app.inverted_body, tokenize(query), "body_index")
+    q = tokenize(query)
     title = sim_title(app.inverted_title, tokenize(query), "title_index")
-    merged_list = merge_results(title, body,title_weight=0.12,text_weight=0.88)
-    for tup in merged_list:
+    temp = app.BM25.search_merge(q,title)
+    for tup in temp:
         res.append((tup[0], app.titles[tup[0]]))
     return jsonify(res)
-
 
 #     search with stemming
 #     res = []
