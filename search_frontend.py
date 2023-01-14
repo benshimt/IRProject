@@ -4,13 +4,15 @@ import numpy as np
 import pandas as pd
 from flask import Flask, request, jsonify
 from nltk.corpus import stopwords
-import gensim
+# import gensim
+from nltk.stem.porter import *
+from BM25fromInvertedIndex import BM25_from_index
 
+import nltk
 
-# import nltk
 # from nltk.stem.porter import *
 # from nltk.corpus import stopwords
-# nltk.download('stopwords')
+nltk.download('stopwords')
 
 
 class MyFlaskApp(Flask):
@@ -30,37 +32,55 @@ class MyFlaskApp(Flask):
     ):
         super().__init__(import_name, static_url_path, static_folder, static_host, host_matching, subdomain_matching,
                          template_folder, instance_path, instance_relative_config, root_path)
-        self.inverted_body = None
-        self.DL = None
-        self.titles = None
-        self.page_rank = None
-        self.inverted_title = None
-        self.inverted_anchor = None
-        self.wid2pv = None
-        self.inverted_body_stem = None
-        self.nfi = None
-
-
-    def run(self, host=None, port=None, debug=None, **options):
-        # self.wid2pv = dict(pickle.load(open('body_index/pageviews.pkl', 'rb')))
         self.inverted_body = InvertedIndex.read_index('body_index', 'body')
+
         objectRep = open("body_index/dict_dl", "rb")
         self.DL = dict(pickle.load(objectRep))
+        objectRep.close()
+        objectRep_pv = open('body_index/pageviews.pkl', 'rb')
+        self.wid2pv = dict(pickle.load(objectRep_pv))
+        objectRep_pv.close()
+
         objectRep_nfi = open("body_index/nfi", "rb")
         self.nfi = dict(pickle.load(objectRep_nfi))
+        objectRep_nfi.close()
+
+
+
         objectRep_title = open("body_index/id_title.pickle", "rb")
         self.titles = dict(pickle.load(objectRep_title))
+        objectRep_title.close()
+
         colnames = ['doc_id', 'pr']
         self.page_rank = pd.read_csv('anchor_index/pr_file.csv.gz', names=colnames, compression='gzip')
         self.inverted_title = InvertedIndex.read_index('title_index', 'title')
         self.inverted_anchor = InvertedIndex.read_index('anchor_index', 'anchor')
+
+
+
         self.inverted_body_stem = InvertedIndex.read_index('body_stem_index', 'body_stem')
+
+
+
+        self.BM25 = BM25_from_index(self.inverted_body, self.DL, "body_index")
+        self.BM25_stem = BM25_from_index(self.inverted_body_stem, self.DL, "body_stem_index")
+        print("===================================================")
+
+    def run(self, host=None, port=None, debug=None, **options):
         super(MyFlaskApp, self).run(host=host, port=port, debug=debug, **options)
 
 
 app = MyFlaskApp(__name__)
+print("===================================================")
 
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+print("===================================================")
+
+
+print("===================================================")
+
+
+print("===================================================")
 
 english_stopwords = frozenset(stopwords.words('english'))
 corpus_stopwords = ["category", "references", "also", "external", "links",
@@ -72,45 +92,16 @@ RE_WORD = re.compile(r"""[\#\@\w](['\-]?\w){2,24}""", re.UNICODE)
 all_stopwords = english_stopwords.union(corpus_stopwords)
 
 
-def get_candidate_documents_and_scores(query_to_search, index, words, pls):
-    candidates = {}
-    for term in np.unique(query_to_search):
-        if term in words:
-            list_of_doc = pls[words.index(term)]
-            normlized_tfidf = [(doc_id, (freq / app.DL[str(doc_id)]) * math.log(len(app.DL) / index.df[term], 10)) for
-                               doc_id, freq in list_of_doc]
-
-            for doc_id, tfidf in normlized_tfidf:
-                candidates[(doc_id, term)] = candidates.get((doc_id, term), 0) + tfidf
-
-    return candidates
-
-
-def generate_document_tfidf_matrix(query_to_search, index, words, pls):
-    total_vocab_size = len(index.term_total)
-    candidates_scores = get_candidate_documents_and_scores(query_to_search, index, words,
-                                                           pls)  # We do not need to utilize all document. Only the docuemnts which have corrspoinding terms with the query.
-    unique_candidates = np.unique([doc_id for doc_id, freq in candidates_scores.keys()])
-    D = np.zeros((len(unique_candidates), total_vocab_size))
-    D = pd.DataFrame(D)
-
-    D.index = unique_candidates
-    D.columns = index.term_total.keys()
-
-    for key in candidates_scores:
-        tfidf = candidates_scores[key]
-        doc_id, term = key
-        D.loc[doc_id][term] = tfidf
-
-    return D
-
-
-def get_top_n(sim_dict, N=3):
+def get_top_n(sim_dict, N=20):
     return sorted([(doc_id, score) for doc_id, score in sim_dict.items()], key=lambda x: x[1], reverse=True)[:N]
 
 
-def tokenize(text):
+def tokenize(text, use_stemming=False):
     list_of_tokens = [token.group() for token in RE_WORD.finditer(text.lower()) if token.group() not in all_stopwords]
+    if use_stemming:
+        stemmer = PorterStemmer()
+        for i in range(len(list_of_tokens)):
+            list_of_tokens[i] = stemmer.stem(list_of_tokens[i])
     return list_of_tokens
 
 
@@ -152,17 +143,65 @@ def cosine_similarity(D, Q):
     return ans
 
 
-def get_topN_score_for_queries(queries_to_search, index, N=20):
-    words, pls = get_posting_iter(index)
-    D = generate_document_tfidf_matrix(queries_to_search, index, words, pls)
-    Q = generate_query_tfidf_vector(queries_to_search, index)
-    tup = get_top_n(cosine_similarity(D, Q), N)
-    return tup
+def merge_results(title_scores, body_scores, title_weight=0.2, text_weight=0.8, N=20):
+    """
+    This function merge and sort documents retrieved by its weighte score (e.g., title and body).
+
+    Parameters:
+    -----------
+    title_scores: a dictionary build upon the title index of queries and tuples representing scores as follows:
+                                                                            key: query_id
+                                                                            value: list of pairs in the following format:(doc_id,score)
+
+    body_scores: a dictionary build upon the body/text index of queries and tuples representing scores as follows:
+                                                                            key: query_id
+                                                                            value: list of pairs in the following format:(doc_id,score)
+    title_weight: float, for weigted average utilizing title and body scores
+    text_weight: float, for weigted average utilizing title and body scores
+    N: Integer. How many document to retrieve. This argument is passed to topN function. By default N = 3, for the topN function.
+
+    Returns:
+    -----------
+    dictionary of querires and topN pairs as follows:
+                                                        key: query_id
+                                                        value: list of pairs in the following format:(doc_id,score).
+    """
+    # YOUR CODE HERE
+    ans = {}
+    for doc_id, score in body_scores:
+        ans[doc_id] = score * text_weight  # if body
+    for doc_id, score in title_scores:
+        if doc_id in ans.keys():
+            ans[doc_id] += score * title_weight  # if body and title
+        else:
+            ans[doc_id] = score * title_weight  # if title and not body
+
+    return sorted([(doc_id, score) for doc_id, score in ans.items()], key=lambda x: x[1], reverse=True)[:N]
 
 
+def sim_body(index, query, dir):
+    dict_query = Counter(query)
+    len_query = len(query)
+    q = 0
+    sim = {}
+    vec_size = {}
+    for q_word in dict_query.keys():
+        q += (dict_query[q_word] / len_query) ** 2
+        pls = index.read_posting_list(q_word, dir)
+        for doc_id, freq in pls:
+            tf_idf_doc = (freq / app.DL[doc_id]) * math.log(len(app.DL) / index.df[q_word], 10)
+            tf_idf_query = (dict_query[q_word] / len(query))
+            if doc_id in sim.keys():
+                sim[doc_id] += tf_idf_doc * tf_idf_query
+            else:
+                sim[doc_id] = tf_idf_doc * tf_idf_query
+    for doc_id in sim.keys():
+        sim[doc_id] = sim[doc_id] * (1 / (q ** 0.5)) * ((1 / app.nfi[str(doc_id)]) ** 0.5)
+    temp = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:20]
+    return temp
 
 
-@app.route("/search?")
+@app.route("/search")
 def search():
     ''' Returns up to a 100 of your best search results for the query. This is 
         the place to put forward your best search engine, and you are free to
@@ -180,14 +219,70 @@ def search():
         list of up to 100 search results, ordered from best to worst where each 
         element is a tuple (wiki_id, title).
     '''
+    # BM25 body
     res = []
     query = request.args.get('query', '')
     if len(query) == 0:
         return jsonify(res)
-    # BEGIN SOLUTION
-
-    # END SOLUTION
+    q = tokenize(query)
+    temp = app.BM25.search(q)
+    for tup in temp:
+        res.append((tup[0], app.titles[tup[0]]))
     return jsonify(res)
+
+    # basic search
+    # res = []
+    # query = request.args.get('query', '')
+    # if len(query) == 0:
+    #     return jsonify(res)
+    # # BEGIN SOLUTION
+    # body = sim_body(app.inverted_body,tokenize(query),"body_index")
+    # title = all_titles_score(tokenize(query), app.inverted_title)
+    # merged_list = merge_results(title, body)
+    # for tup in merged_list:
+    #     res.append((tup[0], app.titles(tup[0])))
+    # return jsonify(res)
+
+
+#     search with stemming
+#     res = []
+#     query = request.args.get('query', '')
+#     if len(query) == 0:
+#         return jsonify(res)
+#     stemQ = tokenize(query,use_stemming=True)
+#     body = sim_body(app.inverted_body_stem,stemQ,'body_stem')
+#     title = all_titles_score(stemQ, app.inverted_title)
+#     merged_list = merge_results(title, body)
+#     for tup in merged_list:
+#         res.append((tup[0], app.titles(tup[0])))
+#     return jsonify(res)
+
+# search based on title , body_stem and anchor
+#     res = []
+#     query = request.args.get('query', '')
+#     if len(query) == 0:
+#         return jsonify(res)
+#     stemQ = tokenize(query,use_stemming=True)
+#     body = sim_body(app.inverted_body_stem,stemQ,'body_stem')
+#     title = all_titles_score(stemQ, app.inverted_title)
+#     anchor = all_anchor_score(stemQ,app.inverted_anchor)
+#     merged_list_body_title = merge_results(title, body)
+#     merged_list = merge_results(anchor , merged_list_body_title , 0.1,0.9)
+#     for tup in merged_list:
+#         res.append((tup[0], app.titles(tup[0])))
+#     return jsonify(res)
+
+
+# BM25 body
+#     res = []
+#     query = request.args.get('query', '')
+#     if len(query) == 0:
+#         return jsonify(res)
+#     q = tokenize(query)
+#     temp = app.BM25_stem.search(q)
+#     for tup in temp:
+#         res.append((tup[0], app.titles[tup[0]]))
+#     return jsonify(res)
 
 
 @app.route("/search_body")
@@ -244,7 +339,7 @@ def search_body():
     sim = {}
     vec_size = {}
     for q_word in dict_query.keys():
-        q += (dict_query[q_word]/len_query) ** 2
+        q += (dict_query[q_word] / len_query) ** 2
         pls = app.inverted_body.read_posting_list(q_word, "body_index")
         for doc_id, freq in pls:
             tf_idf_doc = (freq / app.DL[doc_id]) * math.log(len(app.DL) / app.inverted_body.df[q_word], 10)
@@ -255,7 +350,7 @@ def search_body():
             else:
                 sim[doc_id] = tf_idf_doc * tf_idf_query
     for doc_id in sim.keys():
-        sim[doc_id] = sim[doc_id] * (1 / (q ** 0.5)) * ((1 / app.nfi[str(doc_id)]) ** 0.5)
+        sim[doc_id] = sim[doc_id] * (1 / (q ** 0.5)) * ((1 / app.nfi[doc_id]) ** 0.5)
     temp = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:20]
     for tup in temp:
         res.append((tup[0], app.titles[tup[0]]))
@@ -281,7 +376,7 @@ def all_anchor_score(query_to_search, index):
     for term in np.unique(query_to_search):
         if term in index.df.keys():
             list_of_doc = app.inverted_title.read_posting_list(term, "anchor_index")
-            for doc_id,freq in list_of_doc:
+            for doc_id, freq in list_of_doc:
                 if doc_id in candidates.keys():
                     candidates[doc_id] += 1
                 else:
