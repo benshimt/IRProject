@@ -2,9 +2,7 @@ import math
 from collections import Counter
 from itertools import chain
 
-
 import time
-
 
 # When preprocessing the data have a dictionary of document length for each document saved in a variable called `DL`.
 import numpy as np
@@ -19,7 +17,7 @@ class BM25_from_index:
     index: inverted index
     """
 
-    def __init__(self,index,DL ,dir , k1=1.5, b=0.75 ):
+    def __init__(self, index, DL, dir, k1=1.5, b=0.75):
 
         self.b = b
         self.k1 = k1
@@ -30,7 +28,6 @@ class BM25_from_index:
         self.dir = dir
 
         # self.pls = zip(*self.index.posting_lists_iter())
-
 
     def calc_idf(self, query):
 
@@ -57,7 +54,7 @@ class BM25_from_index:
                 pass
         return idf
 
-    def get_candidate_documents_and_scores(self,query_to_search):
+    def get_candidate_documents_and_scores(self, query_to_search):
         candidates = {}
         for term in np.unique(query_to_search):
             if term in self.index.df.keys():
@@ -106,7 +103,6 @@ class BM25_from_index:
         """
         sim = {}
 
-
         for doc_id, term in self.get_candidate_documents_and_scores(query).keys():
             sim[doc_id] = self._score(query, doc_id)
         temp_body = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:N]
@@ -117,13 +113,9 @@ class BM25_from_index:
             sim[doc_id] = self._score(query, doc_id)
         temp = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:N]
 
-
-
         return temp
 
-
-
-    def search_merge(self, query,title_lst, N=20):
+    def search_merge(self, query, title_lst, N=20):
 
         """
 
@@ -164,7 +156,7 @@ class BM25_from_index:
 
         ans = {}
         for doc_id, score in temp:
-            ans[doc_id] = score * 0.8 # if body
+            ans[doc_id] = score * 0.8  # if body
         for doc_id, score in title_lst:
             if doc_id in ans.keys():
                 ans[doc_id] += score * 0.2  # if body and title
@@ -197,7 +189,7 @@ class BM25_from_index:
                     score += (numerator / denominator)
         return score
 
-    def get_candidate_titles_and_scores(self, query_to_search,index):
+    def get_candidate_titles_and_scores(self, query_to_search, index):
         candidates = {}
         for term in np.unique(query_to_search):
             if term in self.index.df.keys():
