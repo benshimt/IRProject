@@ -156,10 +156,10 @@ class BM25_from_index:
 
         ans = {}
         for doc_id, score in temp:
-            ans[doc_id] = score * 0.8  # if body
+            ans[doc_id] = score * 0.85  # if body
         for doc_id, score in title_lst:
             if doc_id in ans.keys():
-                ans[doc_id] += score * 0.2  # if body and title
+                ans[doc_id] += score * 0.15  # if body and title
             else:
                 ans[doc_id] = score * 0.2
         return sorted([(doc_id, score) for doc_id, score in ans.items()], key=lambda x: x[1], reverse=True)[:20]
