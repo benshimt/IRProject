@@ -270,7 +270,7 @@ def search():
     # BEGIN SOLUTION
     body = sim_body(app.inverted_body, tokenize(query), "body_index")
     title = sim_title(app.inverted_title, tokenize(query), "title_index")
-    merged_list = merge_results(title, body)
+    merged_list = merge_results(title, body,title_weight=0.1,text_weight=0.9)
     for tup in merged_list:
         res.append((tup[0], app.titles[tup[0]]))
     return jsonify(res)
