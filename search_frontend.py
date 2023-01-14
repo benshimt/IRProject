@@ -196,7 +196,7 @@ def sim_body(index, query, dir):
             else:
                 sim[doc_id] = tf_idf_doc * tf_idf_query
     for doc_id in sim.keys():
-        sim[doc_id] = sim[doc_id] * (1 / (q ** 0.5)) * ((1 / app.nfi[doc_id]) ** 0.5)
+        sim[doc_id] = sim[doc_id] * (1 / (q ** 0.5)) * (1 / app.nfi[doc_id])
     temp = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:20]
     return temp
 
@@ -350,7 +350,7 @@ def search_body():
             else:
                 sim[doc_id] = tf_idf_doc * tf_idf_query
     for doc_id in sim.keys():
-        sim[doc_id] = sim[doc_id] * (1 / (q ** 0.5)) * ((1 / app.nfi[doc_id]) ** 0.5)
+        sim[doc_id] = sim[doc_id] * (1 / (q ** 0.5)) * (1 / app.nfi[doc_id])
     temp = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:20]
     for tup in temp:
         res.append((tup[0], app.titles[tup[0]]))
