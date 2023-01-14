@@ -240,7 +240,7 @@ def search():
     title = all_titles_score(tokenize(query), app.inverted_title)
     merged_list = merge_results(title, body)
     for tup in merged_list:
-        res.append((tup[0], app.titles(tup[0])))
+        res.append((tup[0], app.titles[tup[0]]))
     return jsonify(res)
 
 
