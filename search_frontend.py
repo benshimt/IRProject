@@ -231,17 +231,17 @@ def search():
     # return jsonify(res)
 
     # basic search
-    res = []
-    query = request.args.get('query', '')
-    if len(query) == 0:
-        return jsonify(res)
-    # BEGIN SOLUTION
-    body = sim_body(app.inverted_body,tokenize(query),"body_index")
-    title = all_titles_score(tokenize(query), app.inverted_title)
-    merged_list = merge_results(title, body)
-    for tup in merged_list:
-        res.append((tup[0], app.titles[tup[0]]))
-    return jsonify(res)
+    # res = []
+    # query = request.args.get('query', '')
+    # if len(query) == 0:
+    #     return jsonify(res)
+    # # BEGIN SOLUTION
+    # body = sim_body(app.inverted_body,tokenize(query),"body_index")
+    # title = all_titles_score(tokenize(query), app.inverted_title)
+    # merged_list = merge_results(title, body)
+    # for tup in merged_list:
+    #     res.append((tup[0], app.titles[tup[0]]))
+    # return jsonify(res)
 
 
 #     search with stemming
@@ -258,19 +258,19 @@ def search():
 #     return jsonify(res)
 
 # search based on title , body_stem and anchor
-#     res = []
-#     query = request.args.get('query', '')
-#     if len(query) == 0:
-#         return jsonify(res)
-#     stemQ = tokenize(query,use_stemming=True)
-#     body = sim_body(app.inverted_body_stem,stemQ,'body_stem')
-#     title = all_titles_score(stemQ, app.inverted_title)
-#     anchor = all_anchor_score(stemQ,app.inverted_anchor)
-#     merged_list_body_title = merge_results(title, body)
-#     merged_list = merge_results(anchor , merged_list_body_title , 0.1,0.9)
-#     for tup in merged_list:
-#         res.append((tup[0], app.titles(tup[0])))
-#     return jsonify(res)
+    res = []
+    query = request.args.get('query', '')
+    if len(query) == 0:
+        return jsonify(res)
+    stemQ = tokenize(query,use_stemming=True)
+    body = sim_body(app.inverted_body_stem,stemQ,'body_stem')
+    title = all_titles_score(stemQ, app.inverted_title)
+    anchor = all_anchor_score(stemQ,app.inverted_anchor)
+    merged_list_body_title = merge_results(title, body)
+    merged_list = merge_results(anchor , merged_list_body_title , 0.1,0.9)
+    for tup in merged_list:
+        res.append((tup[0], app.titles[tup[0]]))
+    return jsonify(res)
 
 
 # BM25 body stem
