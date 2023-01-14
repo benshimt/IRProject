@@ -58,29 +58,20 @@ class MyFlaskApp(Flask):
 
 
 
-        self.inverted_body_stem = InvertedIndex.read_index('body_stem_index', 'body_stem')
-
-
-
-        self.BM25 = BM25_from_index(self.inverted_body, self.DL, "body_index")
-        self.BM25_stem = BM25_from_index(self.inverted_body_stem, self.DL, "body_stem_index")
-        print("===================================================")
+        # self.inverted_body_stem = InvertedIndex.read_index('body_stem_index', 'body_stem')
+        #
+        #
+        #
+        # self.BM25 = BM25_from_index(self.inverted_body, self.DL, "body_index")
+        # self.BM25_stem = BM25_from_index(self.inverted_body_stem, self.DL, "body_stem_index")
 
     def run(self, host=None, port=None, debug=None, **options):
         super(MyFlaskApp, self).run(host=host, port=port, debug=debug, **options)
 
 
 app = MyFlaskApp(__name__)
-print("===================================================")
-
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
-print("===================================================")
 
-
-print("===================================================")
-
-
-print("===================================================")
 
 english_stopwords = frozenset(stopwords.words('english'))
 corpus_stopwords = ["category", "references", "also", "external", "links",
@@ -243,6 +234,18 @@ def search():
     #     res.append((tup[0], app.titles[tup[0]]))
     # return jsonify(res)
 
+    # cosine sim title and body
+    res = []
+    query = request.args.get('query', '')
+    if len(query) == 0:
+        return jsonify(res)
+    # BEGIN SOLUTION
+    body = sim_body(app.inverted_body,tokenize(query),"body_index")
+    title = sim_body(app.inverted_title,tokenize(query),"title_index")
+    merged_list = merge_results(title, body)
+    for tup in merged_list:
+        res.append((tup[0], app.titles[tup[0]]))
+    return jsonify(res)
 
 #     search with stemming
 #     res = []
@@ -258,20 +261,21 @@ def search():
 #     return jsonify(res)
 
 # search based on title , body_stem and anchor
-    res = []
-    query = request.args.get('query', '')
-    if len(query) == 0:
-        return jsonify(res)
-    stemQ = tokenize(query)
-    body = sim_body(app.inverted_body,stemQ,'body_index')
-    title = all_titles_score(stemQ, app.inverted_title)
-    candidates = all_anchor_score(stemQ,app.inverted_anchor)
-    anchor = sorted([(doc_id, score) for doc_id, score in candidates.items()], key=lambda x: x[1], reverse=True)[:20]
-    merged_list_body_title = merge_results(title, body)
-    merged_list = merge_results(anchor, merged_list_body_title , 0.1,0.9)
-    for tup in merged_list:
-        res.append((tup[0], app.titles[tup[0]]))
-    return jsonify(res)
+#     res = []
+#     query = request.args.get('query', '')
+#     if len(query) == 0:
+#         return jsonify(res)
+#     stemQ = tokenize(query)
+#     body = sim_body(app.inverted_body,stemQ,'body_index')
+#     title = all_titles_score(stemQ, app.inverted_title)
+#     candidates = all_anchor_score(stemQ,app.inverted_anchor)
+#     anchor = sorted([(doc_id, score) for doc_id, score in candidates.items()], key=lambda x: x[1], reverse=True)[:20]
+#     merged_list_body_title = merge_results(title, body)
+#     merged_list = merge_results(anchor, merged_list_body_title , 0.1,0.9)
+#     for tup in merged_list:
+#         res.append((tup[0], app.titles[tup[0]]))
+#     return jsonify(res)
+
 
 
 
