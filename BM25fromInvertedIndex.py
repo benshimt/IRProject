@@ -148,11 +148,11 @@ class BM25_from_index:
         score: float, bm25 score.
 
         """
-        sim = {}
+        simd = {}
 
         for doc_id, term in self.get_candidate_documents_and_scores(query).keys():
-            sim[doc_id] = self._score(query, doc_id)
-        temp = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:N]
+            simd[doc_id] = self._score(query, doc_id)
+        temp = sorted([(doc_id, score) for doc_id, score in simd.items()], key=lambda x: x[1], reverse=True)[:N]
 
         ans = {}
         for doc_id, score in temp:
@@ -161,7 +161,7 @@ class BM25_from_index:
             if doc_id in ans.keys():
                 ans[doc_id] += score * 0.15  # if body and title
             else:
-                ans[doc_id] = score * 0.2
+                ans[doc_id] = score * 0.15
         return sorted([(doc_id, score) for doc_id, score in ans.items()], key=lambda x: x[1], reverse=True)[:20]
 
     def _score(self, query, doc_id):
