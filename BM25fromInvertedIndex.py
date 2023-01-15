@@ -17,7 +17,7 @@ class BM25_from_index:
     index: inverted index
     """
 
-    def __init__(self, index, DL, dir, k1=1.5, b=0.75):
+    def __init__(self, index, DL, dir, k1=1.2, b=0.75):
 
         self.b = b
         self.k1 = k1
@@ -68,7 +68,7 @@ class BM25_from_index:
 
         return candidates
 
-    def search(self, query, N=20):
+    def search(self, query, N=10):
 
         """
 
@@ -103,19 +103,13 @@ class BM25_from_index:
         """
         sim = {}
 
-        for doc_id, term in self.get_candidate_documents_and_scores(query).keys():
-            sim[doc_id] = self._score(query, doc_id)
-        temp_body = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:N]
-
-        sim2 = {}
-
         for doc_id, term in self.get_candidate_titles_and_scores(query).keys():
             sim[doc_id] = self._score(query, doc_id)
         temp = sorted([(doc_id, score) for doc_id, score in sim.items()], key=lambda x: x[1], reverse=True)[:N]
 
         return temp
 
-    def search_merge(self, query, title_lst, N=20):
+    def search_merge(self, query, title_lst, N=10):
 
         """
 
@@ -159,10 +153,10 @@ class BM25_from_index:
             ans[doc_id] = score * 0.9  # if body
         for doc_id, score in title_lst:
             if doc_id in ans.keys():
-                ans[doc_id] += score * 0.1  # if body and title
+                ans[doc_id] += score * 0.10  # if body and title
             else:
-                ans[doc_id] = score * 0.1
-        return sorted([(doc_id, score) for doc_id, score in ans.items()], key=lambda x: x[1], reverse=True)[:20]
+                ans[doc_id] = score * 0.10
+        return sorted([(doc_id, score) for doc_id, score in ans.items()], key=lambda x: x[1], reverse=True)[:10]
 
     def _score(self, query, doc_id):
 
