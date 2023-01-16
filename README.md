@@ -22,4 +22,3 @@ retrive all the documents based on anchor scored binary
 calculate the page rank for each wiki file and return it as a list
 #### pageRank
 calculate the page view for each wiki file and return it as a list
-### Modules Test:  
